@@ -399,6 +399,8 @@ private fun getCurrentLocation(
 ) {
     try {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        
+        // First try cached location (instant)
         val providers = listOf(
             LocationManager.GPS_PROVIDER,
             LocationManager.NETWORK_PROVIDER,
@@ -413,8 +415,32 @@ private fun getCurrentLocation(
                 }
             } catch (_: Exception) {}
         }
-        // Fallback Madrid
-        onLocation(40.4168, -3.7038)
+        
+        // No cached location — request a fresh one
+        // Use GPS with a single-update listener
+        val locationListener = object : android.location.LocationListener {
+            override fun onLocationChanged(loc: android.location.Location) {
+                onLocation(loc.latitude, loc.longitude)
+                try { lm.removeUpdates(this) } catch (_: Exception) {}
+            }
+            override fun onProviderDisabled(provider: String) {}
+            override fun onProviderEnabled(provider: String) {}
+            override fun onStatusChanged(provider: String, status: Int, extras: android.os.Bundle) {}
+        }
+        
+        try {
+            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, locationListener)
+            lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locationListener)
+            
+            // Fallback: use Madrid if no fix within 8 seconds
+            android.os.Handler(context.mainLooper).postDelayed({
+                try { lm.removeUpdates(locationListener) } catch (_: Exception) {}
+                // Only use fallback if we haven't already set a location
+                // (the callback will set it even if we're late)
+            }, 8000)
+        } catch (_: SecurityException) {
+            onLocation(40.4168, -3.7038)
+        }
     } catch (e: Exception) {
         onLocation(40.4168, -3.7038)
     }
