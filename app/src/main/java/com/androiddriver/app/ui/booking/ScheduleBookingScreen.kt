@@ -304,6 +304,61 @@ fun ScheduleBookingScreen(
             )
 
 
+    // Booking confirmation dialog
+    if (showConfirmDialog && confirmData != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Confirm Schedule", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Date: ${formatDate(scheduledDateCal)} at ${formatTime(scheduledTimeCal)}", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("From: ${confirmData?.first ?: ""}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("To: ${confirmData?.second ?: ""}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    durationMin?.let { Text("${it} min", style = MaterialTheme.typography.bodyLarge) }
+                    Text("${"%.1f".format(distanceKm ?: 0.0)} km", style = MaterialTheme.typography.bodyLarge)
+                    Text("${"%.2f".format(fare ?: 0.0)} Euro", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    if (bookingNotes.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Notes: $bookingNotes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showConfirmDialog = false
+                    isBooking = true; errorMsg = null; bookingResult = null
+                    kotlinx.coroutines.MainScope().launch {
+                        try {
+                            val roadFare = fare ?: 0.0; val roadDistance = distanceKm ?: 0.0; val roadMinutes = durationMin ?: 0
+                            val response = RetrofitClient.api.createBooking(BookingRequest(
+                                pickupAddress = pickupAddress, pickupLat = pickupLat, pickupLng = pickupLng,
+                                dropoffAddress = dropoffAddress, dropoffLat = dropoffLat!!, dropoffLng = dropoffLng!!,
+                                type = "scheduled", fare = roadFare, scheduledDate = "${formatDate(scheduledDateCal)} ${formatTime(scheduledTimeCal)}:00", notes = "${roadDistance}km ${roadMinutes}min | ${bookingNotes}"
+                            ))
+                            if (response.isSuccessful && response.body() != null) {
+                                val body = response.body()!!
+                                if (body.booking != null) { bookingResult = "Booking #${body.booking.id} scheduled"; onBookingCreated() }
+                                else { errorMsg = body.error ?: "Booking failed" }
+                            } else { errorMsg = "Server error (${response.code()})" }
+                        } catch (e: Exception) { errorMsg = e.message ?: "Connection error" }
+                        finally { isBooking = false }
+                    }
+                }) {
+                    Text("SCHEDULE", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
             // ─── COLLAPSIBLE BOTTOM CARD ────────────────────────
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
