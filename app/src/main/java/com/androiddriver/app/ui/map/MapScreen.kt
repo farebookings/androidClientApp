@@ -200,9 +200,21 @@ fun MapScreen(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                        setTileSource(TileSourceFactory.MAPNIK)
+                        setTileSource(org.osmdroid.tileprovider.tilesource.XYTileSource(
+                            "Satellite",
+                            0, 19, 256,
+                            ".png",
+                            arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/")
+                        ))
                         setMultiTouchControls(true)
                         controller.setZoom(16.0)
+                        try {
+                            zoomController.setVisibility(
+                                org.osmdroid.views.CustomZoomButtonsController.Visibility.SHOW_AND_FADEOUT
+                            )
+                        } catch (e: Exception) {
+                            setBuiltInZoomControls(true)
+                        }
                         controller.setCenter(GeoPoint(pickupLat, pickupLng))
                         isTilesScaledToDpi = true
                         mapView = this
