@@ -5,12 +5,15 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
 object RetrofitClient {
-    // Change to your server IP when testing on device
-    private const val BASE_URL = "http://10.0.2.2:8000/" // Android emulator → host
-    // For physical device, use your machine's IP: "http://192.168.x.x:8000/"
+    private const val BASE_URL = "https://bookings.toronet.es/"
 
     private var token: String? = null
 
@@ -20,10 +23,22 @@ object RetrofitClient {
 
     fun getToken(): String? = token
 
+    // Trust ALL certificates (dev mode with self-signed Plesk cert)
+    private val trustingTrustManager = object : X509TrustManager {
+        override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+        override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+        override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+    }
+
+    private val sslContext = SSLContext.getInstance("TLS").apply {
+        init(null, arrayOf<TrustManager>(trustingTrustManager), SecureRandom())
+    }
+
     private val authInterceptor = Interceptor { chain ->
         val request = chain.request().newBuilder()
         token?.let {
-            request.addHeader("Authorization", "Bearer $it")
+            // Nginx on Plesk strips Authorization header — use X-Token instead
+            request.addHeader("X-Token", "Bearer $it")
         }
         chain.proceed(request.build())
     }
@@ -35,6 +50,8 @@ object RetrofitClient {
     private val client = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
         .addInterceptor(loggingInterceptor)
+        .sslSocketFactory(sslContext.socketFactory, trustingTrustManager)
+        .hostnameVerifier { _, _ -> true } // Accept any hostname (dev)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()

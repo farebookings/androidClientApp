@@ -43,14 +43,50 @@ class Auth {
      * Require authentication — returns user data or exits
      */
     public static function requireAuth(): array {
-        $headers = getallheaders();
-        $auth = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-
-        if (!preg_match('/^Bearer\s+(.+)$/', $auth, $matches)) {
+        // Try multiple ways to get the Authorization header
+        $auth = '';
+        
+        // 1. getallheaders() (Apache, some PHP-FPM)
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders();
+            $auth = $headers['Authorization'] ?? $headers['authorization'] ?? $headers['X-Token'] ?? $headers['x-token'] ?? '';
+        }
+        
+        // 2. $_SERVER vars (Nginx + PHP-FPM)
+        if (empty($auth)) {
+            $auth = $_SERVER['HTTP_AUTHORIZATION']
+                  ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+                  ?? $_SERVER['HTTP_X_TOKEN']
+                  ?? '';
+        }
+        
+        // 3. Query parameter fallback (for admin panel)
+        if (empty($auth) && !empty($_GET['token'])) {
+            $auth = 'Bearer ' . $_GET['token'];
+        }
+        
+        // Extract Bearer token
+        if (preg_match('/^Bearer\s+(.+)$/', $auth, $matches)) {
+            $token = $matches[1];
+        } else {
+            // Try raw token
+            $token = $auth;
+        }
+        
+        if (empty($token)) {
             http_response_code(401);
             echo json_encode(['error' => 'Token required']);
             exit;
         }
+        
+        $payload = self::validateToken($token);
+        if (!$payload) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid or expired token']);
+            exit;
+        }
+        
+        return $payload;
 
         $payload = self::validateToken($matches[1]);
         if (!$payload) {
@@ -75,8 +111,9 @@ class Auth {
         return $payload;
     }
 
-    private static function base64Url(array $data): string {
-        return rtrim(strtr(base64_encode(json_encode($data)), '+/', '-_'), '=');
+    public static function base64url(array|string $data): string {
+        $raw = is_array($data) ? json_encode($data) : $data;
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
     }
 
     private static function urlDecode(string $data): string {

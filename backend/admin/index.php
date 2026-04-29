@@ -70,7 +70,7 @@
                 ...options,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token,
+                    'X-Token': 'Bearer ' + token,
                     ...(options.headers || {}),
                 },
             });
