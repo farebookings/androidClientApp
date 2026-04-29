@@ -339,7 +339,7 @@ fun MapScreen(
                                     }
                                 }
                                 if (!isExpanded) {
-                                    Box(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
                                         Button(
                                             onClick = {
                                                 if (dropoffLat == null) { errorMsg = "Please enter a valid destination address"; return@Button }
@@ -361,7 +361,7 @@ fun MapScreen(
                                                     finally { isBooking = false }
                                                 }
                                             },
-                                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                                            modifier = Modifier.weight(1f).height(44.dp),
                                             enabled = dropoffAddress.isNotBlank() && dropoffLat != null && !isBooking,
                                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                         ) {
