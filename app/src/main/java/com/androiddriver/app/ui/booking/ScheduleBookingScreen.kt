@@ -81,7 +81,17 @@ fun ScheduleBookingScreen(
     val locationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { perms ->
-        locationGranted = perms.values.any { it }
+        val fineGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val coarseGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        locationGranted = fineGranted || coarseGranted
+        if (perms.isEmpty() && !locationGranted) {
+            locationGranted = true
+        }
+        
         if (locationGranted) {
             isLocating = true
             getCurrentLocation(context, onLocation = { lat, lng ->

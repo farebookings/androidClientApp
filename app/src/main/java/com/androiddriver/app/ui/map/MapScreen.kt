@@ -66,7 +66,19 @@ fun MapScreen(
     val locationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { perms ->
-        locationGranted = perms.values.any { it }
+        // Also verify with checkSelfPermission (some devices return different map keys)
+        val fineGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val coarseGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        locationGranted = fineGranted || coarseGranted
+        // Also check if map is empty (already granted on some devices)
+        if (perms.isEmpty() && !locationGranted) {
+            locationGranted = true
+        }
+        
         if (locationGranted) {
             isLocating = true
             getCurrentLocation(context, onLocation = { lat, lng ->
@@ -79,7 +91,15 @@ fun MapScreen(
             })
         } else {
             isLocating = false
-            pickupAddress = "Location permission denied"
+            pickupAddress = "Enable location in Settings to find your address"
+            // Retry permission request after a short delay
+            kotlinx.coroutines.MainScope().launch {
+                kotlinx.coroutines.delay(2000)
+                locationLauncher.launch(arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                ))
+            }
         }
     }
 
