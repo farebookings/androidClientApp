@@ -92,14 +92,6 @@ fun MapScreen(
         } else {
             isLocating = false
             pickupAddress = "Enable location in Settings to find your address"
-            // Retry permission request after a short delay
-            kotlinx.coroutines.MainScope().launch {
-                kotlinx.coroutines.delay(2000)
-                locationLauncher.launch(arrayOf(
-                    android.Manifest.permission.ACCESS_FINE_LOCATION,
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION
-                ))
-            }
         }
     }
 
