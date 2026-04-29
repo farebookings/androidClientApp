@@ -55,9 +55,20 @@ fun ScheduleBookingScreen(
     var routePoints by remember { mutableStateOf<List<Pair<Double, Double>>?>(null) }
     var isRouting by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(true) }
-    var scheduledDate by remember { mutableStateOf(java.time.LocalDate.now().plusDays(1).toString()) }
-    var scheduledTime by remember { mutableStateOf("09:00") }
+    val calendarNow = java.util.Calendar.getInstance()
+    calendarNow.add(java.util.Calendar.DAY_OF_MONTH, 1)
+    var scheduledDateCal by remember { mutableStateOf(calendarNow) }
+    var scheduledTimeCal by remember { mutableStateOf(java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, 9); set(java.util.Calendar.MINUTE, 0) }) }
     var bookingNotes by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    fun formatDate(cal: java.util.Calendar): String {
+        return String.format("%04d-%02d-%02d", cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH) + 1, cal.get(java.util.Calendar.DAY_OF_MONTH))
+    }
+    fun formatTime(cal: java.util.Calendar): String {
+        return String.format("%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+    }
     var isBooking by remember { mutableStateOf(false) }
     var bookingResult by remember { mutableStateOf<String?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -352,26 +363,98 @@ fun ScheduleBookingScreen(
                                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { triggerGeocode() })
                                 )
 
-                                // Date
-                                OutlinedTextField(
-                                    value = scheduledDate,
-                                    onValueChange = { scheduledDate = it },
-                                    label = { Text("Date (YYYY-MM-DD)") },
-                                    leadingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
-                                )
+                                // Date picker
+                                OutlinedCard(
+                                    onClick = { showDatePicker = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text("Date", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(formatDate(scheduledDateCal), style = MaterialTheme.typography.bodyLarge)
+                                        }
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Icon(Icons.Default.Edit, contentDescription = "Change date", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+
+                                // DatePicker dialog
+                                if (showDatePicker) {
+                                    val datePickerState = rememberDatePickerState(
+                                        initialSelectedDateMillis = scheduledDateCal.timeInMillis
+                                    )
+                                    androidx.compose.material3.DatePickerDialog(
+                                        onDismissRequest = { showDatePicker = false },
+                                        confirmButton = {
+                                            TextButton(onClick = {
+                                                if (datePickerState.selectedDateMillis != null) {
+                                                    val cal = java.util.Calendar.getInstance()
+                                                    cal.timeInMillis = datePickerState.selectedDateMillis!!
+                                                    scheduledDateCal = cal
+                                                }
+                                                showDatePicker = false
+                                            }) { Text("OK", fontWeight = FontWeight.Bold) }
+                                        },
+                                        dismissButton = {
+                                            TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                                        }
+                                    ) {
+                                        DatePicker(state = datePickerState)
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // Time
-                                OutlinedTextField(
-                                    value = scheduledTime,
-                                    onValueChange = { scheduledTime = it },
-                                    label = { Text("Time (HH:MM)") },
-                                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
-                                )
+                                // Time picker
+                                OutlinedCard(
+                                    onClick = { showTimePicker = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text("Time", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(formatTime(scheduledTimeCal), style = MaterialTheme.typography.bodyLarge)
+                                        }
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Icon(Icons.Default.Edit, contentDescription = "Change time", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+
+                                // TimePicker dialog
+                                if (showTimePicker) {
+                                    val state = rememberTimePickerState(
+                                        initialHour = scheduledTimeCal.get(java.util.Calendar.HOUR_OF_DAY),
+                                        initialMinute = scheduledTimeCal.get(java.util.Calendar.MINUTE),
+                                        is24Hour = true
+                                    )
+                                    androidx.compose.material3.AlertDialog(
+                                        onDismissRequest = { showTimePicker = false },
+                                        title = { Text("Select time") },
+                                        text = { TimePicker(state = state) },
+                                        confirmButton = {
+                                            TextButton(onClick = {
+                                                val cal = java.util.Calendar.getInstance()
+                                                cal.set(java.util.Calendar.HOUR_OF_DAY, state.hour)
+                                                cal.set(java.util.Calendar.MINUTE, state.minute)
+                                                scheduledTimeCal = cal
+                                                showTimePicker = false
+                                            }) { Text("OK", fontWeight = FontWeight.Bold) }
+                                        },
+                                        dismissButton = {
+                                            TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                                        }
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 // Notes
@@ -403,7 +486,7 @@ fun ScheduleBookingScreen(
                                                 val response = RetrofitClient.api.createBooking(BookingRequest(
                                                     pickupAddress = pickupAddress, pickupLat = pickupLat, pickupLng = pickupLng,
                                                     dropoffAddress = dropoffAddress, dropoffLat = dropoffLat!!, dropoffLng = dropoffLng!!,
-                                                    type = "scheduled", fare = roadFare, scheduledDate = "${scheduledDate} ${scheduledTime}:00", notes = "${roadDistance}km ${roadMinutes}min | ${bookingNotes}"
+                                                    type = "scheduled", fare = roadFare, scheduledDate = "${formatDate(scheduledDateCal)} ${formatTime(scheduledTimeCal)}:00", notes = "${roadDistance}km ${roadMinutes}min | ${bookingNotes}"
                                                 ))
                                                 if (response.isSuccessful && response.body() != null) {
                                                     val body = response.body()!!
