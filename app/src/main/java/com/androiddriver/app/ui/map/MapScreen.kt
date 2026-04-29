@@ -114,6 +114,29 @@ fun MapScreen(
         }
     }
 
+    // ─── Geocode pickup (debounced 1.5s) ──────────────
+    var geocodingPickup by remember { mutableStateOf(false) }
+    val geocodePickupKey = remember { mutableStateOf(0L) }
+    LaunchedEffect(geocodePickupKey.value) {
+        if (pickupAddress.length > 5 && pickupAddress != "Getting location..." && geocodePickupKey.value > 0L) {
+            kotlinx.coroutines.delay(1500)
+            if (pickupAddress.length <= 5) return@LaunchedEffect
+            geocodingPickup = true
+            geocodeAddress(context, pickupAddress) { lat, lng ->
+                if (lat != null && lng != null) {
+                    pickupLat = lat; pickupLng = lng
+                    distanceKm = null
+                    fare = null
+                }
+                geocodingPickup = false
+            }
+        }
+    }
+
+    fun triggerPickupGeocode() {
+        geocodePickupKey.value = System.currentTimeMillis()
+    }
+
     // Geocode trigger (no comma required, 1.5s delay)
     fun triggerGeocode() {
         geocodeKey.value = System.currentTimeMillis()
@@ -227,13 +250,30 @@ fun MapScreen(
                         // Pickup
                         OutlinedTextField(
                             value = pickupAddress,
-                            onValueChange = { pickupAddress = it },
+                            onValueChange = { newVal ->
+                                pickupAddress = newVal
+                                if (newVal.length > 5 && newVal != "Getting location...") triggerPickupGeocode()
+                            },
                             label = { Text("Pickup") },
                             leadingIcon = { Icon(Icons.Default.MyLocation, contentDescription = null) },
+                            trailingIcon = {
+                                if (geocodingPickup) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                } else {
+                                    IconButton(onClick = { triggerPickupGeocode() }) {
+                                        Icon(Icons.Default.Search, contentDescription = "Find")
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            enabled = !isLocating,
-                            supportingText = if (isLocating) {{ Text("Getting GPS...") }} else null
+                            enabled = !isLocating && !geocodingPickup,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSearch = { triggerPickupGeocode() }
+                            )
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
