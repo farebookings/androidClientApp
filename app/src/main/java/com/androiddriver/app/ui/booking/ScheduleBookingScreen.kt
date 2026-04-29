@@ -546,11 +546,17 @@ private fun getCurrentLocation(
             } catch (_: Exception) {}
         }
         
-        // Request fresh location
+        // Request fresh location — prefer GPS, accept network as fallback
+        var locationSet = false
         val locationListener = object : android.location.LocationListener {
             override fun onLocationChanged(loc: android.location.Location) {
-                onLocation(loc.latitude, loc.longitude)
-                try { lm.removeUpdates(this) } catch (_: Exception) {}
+                if (!locationSet || loc.provider == LocationManager.GPS_PROVIDER) {
+                    locationSet = true
+                    onLocation(loc.latitude, loc.longitude)
+                }
+                if (loc.provider == LocationManager.GPS_PROVIDER) {
+                    try { lm.removeUpdates(this) } catch (_: Exception) {}
+                }
             }
             override fun onProviderDisabled(provider: String) {}
             override fun onProviderEnabled(provider: String) {}
@@ -562,9 +568,10 @@ private fun getCurrentLocation(
             lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locationListener)
             android.os.Handler(context.mainLooper).postDelayed({
                 try { lm.removeUpdates(locationListener) } catch (_: Exception) {}
-            }, 8000)
+                if (!locationSet) onLocation(40.4168, -3.7038)
+            }, 15000)
         } catch (_: SecurityException) {
-            onLocation(40.4168, -3.7038)
+            if (!locationSet) onLocation(40.4168, -3.7038)
         }
     } catch (e: Exception) {
         onLocation(40.4168, -3.7038)

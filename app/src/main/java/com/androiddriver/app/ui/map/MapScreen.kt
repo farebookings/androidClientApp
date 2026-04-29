@@ -428,12 +428,19 @@ private fun getCurrentLocation(
             } catch (_: Exception) {}
         }
         
-        // No cached location — request a fresh one
-        // Use GPS with a single-update listener
+        // No cached location — request GPS fix
+        var locationSet = false
         val locationListener = object : android.location.LocationListener {
             override fun onLocationChanged(loc: android.location.Location) {
-                onLocation(loc.latitude, loc.longitude)
-                try { lm.removeUpdates(this) } catch (_: Exception) {}
+                // Only accept if not already set OR if this is a GPS fix (more accurate)
+                if (!locationSet || loc.provider == LocationManager.GPS_PROVIDER) {
+                    locationSet = true
+                    onLocation(loc.latitude, loc.longitude)
+                }
+                // Keep listening for GPS if current fix is from network
+                if (loc.provider == LocationManager.GPS_PROVIDER) {
+                    try { lm.removeUpdates(this) } catch (_: Exception) {}
+                }
             }
             override fun onProviderDisabled(provider: String) {}
             override fun onProviderEnabled(provider: String) {}
@@ -444,14 +451,15 @@ private fun getCurrentLocation(
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, locationListener)
             lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locationListener)
             
-            // Fallback: use Madrid if no fix within 8 seconds
+            // Timeout: stop listening after 15s
             android.os.Handler(context.mainLooper).postDelayed({
                 try { lm.removeUpdates(locationListener) } catch (_: Exception) {}
-                // Only use fallback if we haven't already set a location
-                // (the callback will set it even if we're late)
-            }, 8000)
+                if (!locationSet) {
+                    onLocation(40.4168, -3.7038)
+                }
+            }, 15000)
         } catch (_: SecurityException) {
-            onLocation(40.4168, -3.7038)
+            if (!locationSet) onLocation(40.4168, -3.7038)
         }
     } catch (e: Exception) {
         onLocation(40.4168, -3.7038)
