@@ -54,6 +54,7 @@ fun MapScreen(
     var bookingResult by remember { mutableStateOf<String?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
+    var eventsOverlayRef by remember { mutableStateOf<org.osmdroid.views.overlay.MapEventsOverlay?>(null) }
     var isLocating by remember { mutableStateOf(true) }
 
     // ─── Location Permission ───────────────────────────────
@@ -157,31 +158,31 @@ fun MapScreen(
                         isTilesScaledToDpi = true
                         mapView = this
 
-                        val mapViewRef = this
-                        // ─── Long-press to set pickup point ─────
-                        val eventsOverlay = org.osmdroid.views.overlay.MapEventsOverlay(object : org.osmdroid.events.MapEventsReceiver {
-                            override fun longPressHelper(p: GeoPoint): Boolean {
-                                pickupLat = p.latitude
-                                pickupLng = p.longitude
-                                isLocating = true
-                                reverseGeocode(ctx, p.latitude, p.longitude) { addr ->
-                                    pickupAddress = addr
-                                    isLocating = false
+                        val mv = this
+                        // ─── Long-press on map to set pickup ──
+                        mv.apply {
+                            val eo = org.osmdroid.views.overlay.MapEventsOverlay(object : org.osmdroid.events.MapEventsReceiver {
+                                override fun longPressHelper(p: GeoPoint): Boolean {
+                                    pickupLat = p.latitude
+                                    pickupLng = p.longitude
+                                    isLocating = true
+                                    reverseGeocode(ctx, p.latitude, p.longitude) { addr ->
+                                        pickupAddress = addr
+                                        isLocating = false
+                                    }
+                                    if (dropoffLat != null) {
+                                        val dist = haversine(p.latitude, p.longitude, dropoffLat!!, dropoffLng!!)
+                                        distanceKm = dist
+                                        fare = kotlin.math.round(dist * 100.0) / 100.0
+                                    }
+                                    updateMap(mv, pickupLat, pickupLng, dropoffLat, dropoffLng, pickupAddress, dropoffAddress)
+                                    return true
                                 }
-                                if (dropoffLat != null) {
-                                    val dist = haversine(p.latitude, p.longitude, dropoffLat!!, dropoffLng!!)
-                                    distanceKm = dist
-                                    fare = kotlin.math.round(dist * 100.0) / 100.0
-                                }
-                                updateMap(mapViewRef, p.latitude, p.longitude, dropoffLat, dropoffLng, pickupAddress, dropoffAddress)
-                                return true
-                            }
-
-                            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                                return false
-                            }
-                        })
-                        overlays.add(0, eventsOverlay)
+                                override fun singleTapConfirmedHelper(p: GeoPoint): Boolean { return false }
+                            })
+                            eventsOverlayRef = eo
+                            overlays.add(0, eo)
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize()
@@ -410,8 +411,12 @@ private fun updateMap(
 ) {
     mapView ?: return
 
-    // Clear old overlays
+    // Preserve events overlay, remove everything else
+    val eventsOverlays = mapView.overlays.filter {
+        it is org.osmdroid.views.overlay.MapEventsOverlay
+    }
     mapView.overlays.clear()
+    mapView.overlays.addAll(eventsOverlays)
 
     // Pickup marker
     val pickupMarker = Marker(mapView).apply {
@@ -419,10 +424,6 @@ private fun updateMap(
         title = "📍 Pickup"
         snippet = pickupAddr
         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-        icon = mapView.context.resources?.let {
-            // Create a simple drawable (osmdroid default pin)
-            null
-        }
     }
     mapView.overlays.add(pickupMarker)
 
