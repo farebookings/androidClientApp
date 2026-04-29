@@ -370,12 +370,12 @@ fun ScheduleBookingScreen(
                                                 val response = RetrofitClient.api.createBooking(BookingRequest(
                                                     pickupAddress = pickupAddress, pickupLat = pickupLat, pickupLng = pickupLng,
                                                     dropoffAddress = dropoffAddress, dropoffLat = dropoffLat!!, dropoffLng = dropoffLng!!,
-                                                    type = "immediate", fare = roadFare, notes = "${roadDistance}km ${roadMinutes}min"
+                                                    type = "scheduled", fare = roadFare, scheduledDate = "${scheduledDate} ${scheduledTime}:00", notes = "${roadDistance}km ${roadMinutes}min | ${bookingNotes}"
                                                 ))
                                                 if (response.isSuccessful && response.body() != null) {
                                                     val body = response.body()!!
-                                                    if (body.booking != null) { Toast.makeText(context, "✅ Ride booked! #${body.booking.id}", Toast.LENGTH_LONG).show()
-                                                                bookingResult = "✅ Ride requested! Booking #${body.booking.id}"; onBookingCreated() }
+                                                    if (body.booking != null) { Toast.makeText(context, "✅ Scheduled! #${body.booking.id}", Toast.LENGTH_LONG).show()
+                                                                bookingResult = "✅ Scheduled! Booking #${body.booking.id}"; onBookingCreated() }
                                                     else { errorMsg = body.error ?: "Booking failed" }
                                                 } else { errorMsg = "Server error (${response.code()})" }
                                             } catch (e: Exception) { errorMsg = e.message ?: "Connection error" }
