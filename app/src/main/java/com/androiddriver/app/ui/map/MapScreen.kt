@@ -194,6 +194,13 @@ fun MapScreen(
         }
     }
 
+    // ─── Auto-collapse when destination is set ─────────────
+    LaunchedEffect(dropoffLat) {
+        if (dropoffLat != null) {
+            isExpanded = false
+        }
+    }
+
     // ─── UI ──────────────────────────────────────────────────
     Scaffold(
         topBar = {
@@ -332,8 +339,20 @@ fun MapScreen(
                                     }
                                 }
                                 if (!isExpanded) {
-                                    Box(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Expand", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                                    Box(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                                        Button(
+                                            onClick = {
+                                                if (dropoffLat == null) { errorMsg = "Please enter a valid destination address"; return@Button }
+                                                isExpanded = true
+                                                // Will be handled in expanded view
+                                            },
+                                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                                            enabled = dropoffAddress.isNotBlank() && dropoffLat != null && !isBooking,
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                        ) {
+                                            if (isBooking) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                            else { Icon(Icons.Default.DirectionsCar, contentDescription = null); Spacer(modifier = Modifier.width(8.dp)); Text("REQUEST RIDE", fontWeight = FontWeight.Bold) }
+                                        }
                                     }
                                 }
                             }
