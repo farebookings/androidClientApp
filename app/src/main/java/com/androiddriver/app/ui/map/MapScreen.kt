@@ -350,7 +350,9 @@ fun MapScreen(
                                     label = { Text("Pickup") },
                                     leadingIcon = { Icon(Icons.Default.MyLocation, contentDescription = null) },
                                     trailingIcon = {
-                                        if (geocodingPickup) {
+                                        if (isLocating && pickupLat == 0.0) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                        } else if (geocodingPickup) {
                                             CircularProgressIndicator(modifier = Modifier.size(20.dp))
                                         } else {
                                             IconButton(onClick = { triggerPickupGeocode() }) { Icon(Icons.Default.Search, contentDescription = "Find") }
