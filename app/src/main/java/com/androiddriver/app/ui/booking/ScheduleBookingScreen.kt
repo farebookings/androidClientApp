@@ -345,12 +345,11 @@ fun ScheduleBookingScreen(
                                     } else {
                                         Text("Set pickup and destination", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    IconButton(onClick = { }) {
-                                        Icon(
+                                    Icon(
+                                        
                                             if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                                             contentDescription = if (isExpanded) "Collapse" else "Expand"
                                         )
-                                    }
                                 }
                                 if (!isExpanded) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
