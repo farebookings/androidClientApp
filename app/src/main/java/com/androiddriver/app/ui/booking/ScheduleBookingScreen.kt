@@ -345,7 +345,7 @@ fun ScheduleBookingScreen(
                                     } else {
                                         Text("Set pickup and destination", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    IconButton(onClick = { if (isExpanded) isExpanded = false }) {
+                                    IconButton(onClick = { }) {
                                         Icon(
                                             if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                                             contentDescription = if (isExpanded) "Collapse" else "Expand"
