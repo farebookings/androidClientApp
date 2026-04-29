@@ -43,7 +43,7 @@ fun ScheduleBookingScreen(
     val scope = rememberCoroutineScope()
 
     // ─── State ─────────────────────────────────────────────
-    var pickupAddress by remember { mutableStateOf("Getting location...") }
+    var pickupAddress by remember { mutableStateOf("Waiting for GPS...") }
     var dropoffAddress by remember { mutableStateOf("") }
     var pickupLat by remember { mutableStateOf(0.0) }
     var pickupLng by remember { mutableStateOf(0.0) }
@@ -108,17 +108,21 @@ fun ScheduleBookingScreen(
         }
     }
 
-    // Request permission on first composition
-    LaunchedEffect(Unit) {
+    // Request permission on first display
+    androidx.compose.runtime.SideEffect {
         Configuration.getInstance().apply {
             userAgentValue = context.packageName
             osmdroidBasePath = context.cacheDir
             osmdroidTileCache = context.cacheDir.resolve("tiles")
         }
-        locationLauncher.launch(arrayOf(
-            android.Manifest.permission.ACCESS_FINE_LOCATION,
-            android.Manifest.permission.ACCESS_COARSE_LOCATION
-        ))
+    }
+    LaunchedEffect(locationGranted) {
+        if (!locationGranted) {
+            locationLauncher.launch(arrayOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
+        }
     }
 
     // ─── Geocode dropoff (debounced 1.5s) ──────────────
@@ -566,15 +570,9 @@ private fun getCurrentLocation(
         try {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, locationListener)
             lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locationListener)
-            android.os.Handler(context.mainLooper).postDelayed({
-                try { lm.removeUpdates(locationListener) } catch (_: Exception) {}
-                if (!locationSet) onLocation(40.4168, -3.7038)
-            }, 15000)
-        } catch (_: SecurityException) {
-            if (!locationSet) onLocation(40.4168, -3.7038)
-        }
+        } catch (_: SecurityException) {}
     } catch (e: Exception) {
-        onLocation(40.4168, -3.7038)
+        // Location unavailable
     }
 }
 
