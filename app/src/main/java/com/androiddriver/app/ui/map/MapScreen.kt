@@ -121,6 +121,22 @@ fun MapScreen(
         geocodeKey.value = System.currentTimeMillis()
     }
 
+    // --- Get road route via OSRM ---
+    LaunchedEffect(pickupLat, pickupLng, dropoffLat, dropoffLng) {
+        if (pickupLat != 0.0 && dropoffLat != null) {
+            isRouting = true
+            val route = RoadRouter.getRoute(pickupLat, pickupLng, dropoffLat!!, dropoffLng!!)
+            if (route != null) {
+                distanceKm = route.distanceKm
+                durationMin = route.durationMinutes
+                fare = Math.round(route.distanceKm * 100.0) / 100.0
+                routePoints = route.routePoints
+                updateMap(mapView, pickupLat, pickupLng, dropoffLat, dropoffLng, pickupAddress, dropoffAddress, route.routePoints)
+            }
+            isRouting = false
+        }
+    }
+
     // ─── UI ──────────────────────────────────────────────────
     Scaffold(
         topBar = {
