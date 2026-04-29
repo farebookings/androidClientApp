@@ -125,7 +125,10 @@ class MainActivity : ComponentActivity() {
                     // ─── SCHEDULE BOOKING ───────────────────────
                     composable(Screen.ScheduleBooking.route) {
                         ScheduleBookingScreen(
-                            onBack = { navController.popBackStack() }
+                            onNavigateSchedule = { navController.navigate(Screen.Map.route) { popUpTo(Screen.Map.route) { inclusive = true } } },
+                            onNavigateHistory = { navController.navigate(Screen.History.route) },
+                            onNavigateProfile = { navController.navigate(Screen.Profile.route) },
+                            onBookingCreated = { }
                         )
                     }
 
