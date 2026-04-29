@@ -343,8 +343,23 @@ fun MapScreen(
                                         Button(
                                             onClick = {
                                                 if (dropoffLat == null) { errorMsg = "Please enter a valid destination address"; return@Button }
-                                                isExpanded = true
-                                                // Will be handled in expanded view
+                                                isBooking = true; errorMsg = null; bookingResult = null
+                                                scope.launch {
+                                                    try {
+                                                        val roadFare = fare ?: 0.0; val roadDistance = distanceKm ?: 0.0; val roadMinutes = durationMin ?: 0
+                                                        val response = RetrofitClient.api.createBooking(BookingRequest(
+                                                            pickupAddress = pickupAddress, pickupLat = pickupLat, pickupLng = pickupLng,
+                                                            dropoffAddress = dropoffAddress, dropoffLat = dropoffLat!!, dropoffLng = dropoffLng!!,
+                                                            type = "immediate", fare = roadFare, notes = "${roadDistance}km ${roadMinutes}min"
+                                                        ))
+                                                        if (response.isSuccessful && response.body() != null) {
+                                                            val body = response.body()!!
+                                                            if (body.booking != null) { bookingResult = "✅ Ride requested! Booking #${body.booking.id}"; onBookingCreated() }
+                                                            else { errorMsg = body.error ?: "Booking failed" }
+                                                        } else { errorMsg = "Server error (${response.code()})" }
+                                                    } catch (e: Exception) { errorMsg = e.message ?: "Connection error" }
+                                                    finally { isBooking = false }
+                                                }
                                             },
                                             modifier = Modifier.fillMaxWidth().height(44.dp),
                                             enabled = dropoffAddress.isNotBlank() && dropoffLat != null && !isBooking,
