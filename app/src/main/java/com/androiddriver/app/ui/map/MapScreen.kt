@@ -57,6 +57,8 @@ fun MapScreen(
     var isExpanded by remember { mutableStateOf(true) }
     var isBooking by remember { mutableStateOf(false) }
     var bookingResult by remember { mutableStateOf<String?>(null) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var confirmData by remember { mutableStateOf<Pair<String, String>?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var eventsOverlayRef by remember { mutableStateOf<org.osmdroid.views.overlay.MapEventsOverlay?>(null) }
@@ -342,23 +344,8 @@ fun MapScreen(
                                         Button(
                                             onClick = {
                                                 if (dropoffLat == null) { errorMsg = "Please enter a valid destination address"; return@Button }
-                                                isBooking = true; errorMsg = null; bookingResult = null
-                                                scope.launch {
-                                                    try {
-                                                        val roadFare = fare ?: 0.0; val roadDistance = distanceKm ?: 0.0; val roadMinutes = durationMin ?: 0
-                                                        val response = RetrofitClient.api.createBooking(BookingRequest(
-                                                            pickupAddress = pickupAddress, pickupLat = pickupLat, pickupLng = pickupLng,
-                                                            dropoffAddress = dropoffAddress, dropoffLat = dropoffLat!!, dropoffLng = dropoffLng!!,
-                                                            type = "immediate", fare = roadFare, notes = "${roadDistance}km ${roadMinutes}min"
-                                                        ))
-                                                        if (response.isSuccessful && response.body() != null) {
-                                                            val body = response.body()!!
-                                                            if (body.booking != null) { bookingResult = "✅ Ride requested! Booking #${body.booking.id}"; onBookingCreated() }
-                                                            else { errorMsg = body.error ?: "Booking failed" }
-                                                        } else { errorMsg = "Server error (${response.code()})" }
-                                                    } catch (e: Exception) { errorMsg = e.message ?: "Connection error" }
-                                                    finally { isBooking = false }
-                                                }
+                                                confirmData = Pair(pickupAddress, dropoffAddress)
+                                                showConfirmDialog = true
                                             },
                                             modifier = Modifier.weight(1f).height(44.dp),
                                             enabled = dropoffAddress.isNotBlank() && dropoffLat != null && !isBooking,
@@ -429,23 +416,8 @@ fun MapScreen(
                                 Button(
                                     onClick = {
                                         if (dropoffLat == null) { errorMsg = "Please enter a valid destination address"; return@Button }
-                                        isBooking = true; errorMsg = null; bookingResult = null
-                                        scope.launch {
-                                            try {
-                                                val roadFare = fare ?: 0.0; val roadDistance = distanceKm ?: 0.0; val roadMinutes = durationMin ?: 0
-                                                val response = RetrofitClient.api.createBooking(BookingRequest(
-                                                    pickupAddress = pickupAddress, pickupLat = pickupLat, pickupLng = pickupLng,
-                                                    dropoffAddress = dropoffAddress, dropoffLat = dropoffLat!!, dropoffLng = dropoffLng!!,
-                                                    type = "immediate", fare = roadFare, notes = "${roadDistance}km ${roadMinutes}min"
-                                                ))
-                                                if (response.isSuccessful && response.body() != null) {
-                                                    val body = response.body()!!
-                                                    if (body.booking != null) { bookingResult = "✅ Ride requested! Booking #${body.booking.id}"; onBookingCreated() }
-                                                    else { errorMsg = body.error ?: "Booking failed" }
-                                                } else { errorMsg = "Server error (${response.code()})" }
-                                            } catch (e: Exception) { errorMsg = e.message ?: "Connection error" }
-                                            finally { isBooking = false }
-                                        }
+                                        confirmData = Pair(pickupAddress, dropoffAddress)
+                                        showConfirmDialog = true
                                     },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     enabled = !isBooking && dropoffAddress.isNotBlank() && dropoffLat != null,
