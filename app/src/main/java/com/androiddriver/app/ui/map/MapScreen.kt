@@ -92,10 +92,13 @@ fun MapScreen(
         ))
     }
 
-    // ─── Geocode dropoff when user types ──────────────────
+    // ─── Geocode dropoff (debounced 1.5s) ──────────────
     var geocodingDropoff by remember { mutableStateOf(false) }
-    LaunchedEffect(dropoffAddress) {
-        if (dropoffAddress.length > 5 && dropoffAddress.contains(",")) {
+    val geocodeKey = remember { mutableStateOf(0L) }
+    LaunchedEffect(geocodeKey.value) {
+        if (dropoffAddress.length > 5 && geocodeKey.value > 0L) {
+            kotlinx.coroutines.delay(1500) // debounce: wait 1.5s after last keystroke
+            if (dropoffAddress.length <= 5) return@LaunchedEffect
             geocodingDropoff = true
             geocodeAddress(context, dropoffAddress) { lat, lng ->
                 if (lat != null && lng != null) {
@@ -108,6 +111,11 @@ fun MapScreen(
                 geocodingDropoff = false
             }
         }
+    }
+
+    // Geocode trigger (no comma required, 1.5s delay)
+    fun triggerGeocode() {
+        geocodeKey.value = System.currentTimeMillis()
     }
 
     // ─── UI ──────────────────────────────────────────────────
@@ -215,13 +223,30 @@ fun MapScreen(
                         // Dropoff
                         OutlinedTextField(
                             value = dropoffAddress,
-                            onValueChange = { dropoffAddress = it },
+                            onValueChange = { newVal ->
+                                dropoffAddress = newVal
+                                if (newVal.length > 5) triggerGeocode()
+                            },
                             label = { Text("Where to?") },
                             leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                            trailingIcon = {
+                                if (geocodingDropoff) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                } else {
+                                    IconButton(onClick = { triggerGeocode() }) {
+                                        Icon(Icons.Default.Search, contentDescription = "Find")
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             enabled = !geocodingDropoff,
-                            supportingText = if (geocodingDropoff) {{ Text("Getting coordinates...") }} else null
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSearch = { triggerGeocode() }
+                            )
                         )
 
                         // Distance + Fare
