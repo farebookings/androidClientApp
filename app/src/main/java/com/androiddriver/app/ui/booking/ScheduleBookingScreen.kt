@@ -124,6 +124,25 @@ fun ScheduleBookingScreen(
             ))
         }
     }
+    
+    // Retry location every 5s if not received yet
+    LaunchedEffect(Unit) {
+        while (pickupLat == 0.0) {
+            kotlinx.coroutines.delay(5000)
+            if (pickupLat == 0.0 && locationGranted) {
+                getCurrentLocation(context, onLocation = { lat, lng ->
+                    if (pickupLat == 0.0) {
+                        pickupLat = lat; pickupLng = lng
+                        reverseGeocode(context, lat, lng) { addr ->
+                            pickupAddress = addr
+                            isLocating = false
+                        }
+                        updateMap(mapView, lat, lng, dropoffLat, dropoffLng, pickupAddress, null)
+                    }
+                })
+            }
+        }
+    }
 
     // ─── Geocode dropoff (debounced 1.5s) ──────────────
     var geocodingDropoff by remember { mutableStateOf(false) }
