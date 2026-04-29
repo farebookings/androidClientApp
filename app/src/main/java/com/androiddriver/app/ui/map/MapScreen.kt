@@ -53,6 +53,7 @@ fun MapScreen(
     var durationMin by remember { mutableStateOf<Long?>(null) }
     var routePoints by remember { mutableStateOf<List<Pair<Double, Double>>?>(null) }
     var isRouting by remember { mutableStateOf(false) }
+    var isExpanded by remember { mutableStateOf(true) }
     var isBooking by remember { mutableStateOf(false) }
     var bookingResult by remember { mutableStateOf<String?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -236,7 +237,7 @@ fun MapScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // ─── BOTTOM CARD ────────────────────────────────
+            // ─── COLLAPSIBLE BOTTOM CARD ────────────────────────
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -246,166 +247,134 @@ fun MapScreen(
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        // Pickup
-                        OutlinedTextField(
-                            value = pickupAddress,
-                            onValueChange = { newVal ->
-                                pickupAddress = newVal
-                                if (newVal.length > 5 && newVal != "Getting location...") triggerPickupGeocode()
-                            },
-                            label = { Text("Pickup") },
-                            leadingIcon = { Icon(Icons.Default.MyLocation, contentDescription = null) },
-                            trailingIcon = {
-                                if (geocodingPickup) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                } else {
-                                    IconButton(onClick = { triggerPickupGeocode() }) {
-                                        Icon(Icons.Default.Search, contentDescription = "Find")
-                                    }
-                                }
-                            },
+                    Column {
+                        // Summary bar (always visible)
+                        Surface(
+                            onClick = { isExpanded = !isExpanded },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            enabled = !isLocating && !geocodingPickup,
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                imeAction = androidx.compose.ui.text.input.ImeAction.Search
-                            ),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                                onSearch = { triggerPickupGeocode() }
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Dropoff
-                        OutlinedTextField(
-                            value = dropoffAddress,
-                            onValueChange = { newVal ->
-                                dropoffAddress = newVal
-                                if (newVal.length > 5) triggerGeocode()
-                            },
-                            label = { Text("Where to?") },
-                            leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
-                            trailingIcon = {
-                                if (geocodingDropoff) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                } else {
-                                    IconButton(onClick = { triggerGeocode() }) {
-                                        Icon(Icons.Default.Search, contentDescription = "Find")
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            enabled = !geocodingDropoff,
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                imeAction = androidx.compose.ui.text.input.ImeAction.Search
-                            ),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                                onSearch = { triggerGeocode() }
-                            )
-                        )
-
-                        // Road Distance + Fare
-                        if (isRouting) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Calculating road route...", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        if (distanceKm != null && fare != null && !isRouting) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider()
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column {
-                                    durationMin?.let { Text("🚗 ${it} min", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium) }
-                                    Text("🛣️ ${"%.1f".format(distanceKm)} km", style = MaterialTheme.typography.bodyMedium)
-                                }
-                                Text("${"%.2f".format(fare)}€", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-
-                        // Error
-                        errorMsg?.let {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                        }
-
-                        // Booking result
-                        bookingResult?.let {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(it, fontWeight = FontWeight.Bold)
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // REQUEST RIDE button
-                        Button(
-                            onClick = {
-                                if (dropoffLat == null) {
-                                    errorMsg = "Please enter a valid destination address"
-                                    return@Button
-                                }
-                                isBooking = true
-                                errorMsg = null
-                                bookingResult = null
-
-                                scope.launch {
-                                    try {
-                                        val roadFare = fare ?: 0.0
-                                        val roadDistance = distanceKm ?: 0.0
-                                        val roadMinutes = durationMin ?: 0
-
-                                        val response = RetrofitClient.api.createBooking(
-                                            BookingRequest(
-                                                pickupAddress = pickupAddress,
-                                                pickupLat = pickupLat,
-                                                pickupLng = pickupLng,
-                                                dropoffAddress = dropoffAddress,
-                                                dropoffLat = dropoffLat!!,
-                                                dropoffLng = dropoffLng!!,
-                                                type = "immediate",
-                                                fare = roadFare,
-                                                notes = "${roadDistance}km ${roadMinutes}min"
-                                            )
-                                        )
-
-                                        if (response.isSuccessful && response.body() != null) {
-                                            val body = response.body()!!
-                                            if (body.booking != null) {
-                                                bookingResult = "✅ Ride requested! Booking #${body.booking.id}"
-                                                onBookingCreated()
-                                            } else {
-                                                errorMsg = body.error ?: "Booking failed"
-                                            }
-                                        } else {
-                                            errorMsg = "Server error (${response.code()})"
-                                        }
-                                    } catch (e: Exception) {
-                                        errorMsg = e.message ?: "Connection error"
-                                    } finally {
-                                        isBooking = false
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            enabled = !isBooking && dropoffAddress.isNotBlank() && dropoffLat != null,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            if (isBooking) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (distanceKm != null && fare != null && !isRouting) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            durationMin?.let {
+                                                Text("🚗 ${it} min", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                                Text("  ")
+                                            }
+                                            Text("🛣️ ${"%.1f".format(distanceKm)} km", style = MaterialTheme.typography.bodyMedium)
+                                        }
+                                        Text("${"%.2f".format(fare)}€", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    } else if (isRouting) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Calculating route...")
+                                        }
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    } else {
+                                        Text("Set pickup and destination", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    IconButton(onClick = { isExpanded = !isExpanded }) {
+                                        Icon(
+                                            if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                            contentDescription = if (isExpanded) "Collapse" else "Expand"
+                                        )
+                                    }
+                                }
+                                if (!isExpanded) {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Expand", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                                    }
+                                }
+                            }
+                        }
+                        androidx.compose.animation.AnimatedVisibility(visible = isExpanded) {
+                            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                                HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
+                                OutlinedTextField(
+                                    value = pickupAddress,
+                                    onValueChange = { newVal ->
+                                        pickupAddress = newVal
+                                        if (newVal.length > 5 && newVal != "Getting location...") triggerPickupGeocode()
+                                    },
+                                    label = { Text("Pickup") },
+                                    leadingIcon = { Icon(Icons.Default.MyLocation, contentDescription = null) },
+                                    trailingIcon = {
+                                        if (geocodingPickup) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                        } else {
+                                            IconButton(onClick = { triggerPickupGeocode() }) { Icon(Icons.Default.Search, contentDescription = "Find") }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                    enabled = !isLocating && !geocodingPickup,
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { triggerPickupGeocode() })
                                 )
-                            } else {
-                                Icon(Icons.Default.DirectionsCar, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("REQUEST RIDE", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = dropoffAddress,
+                                    onValueChange = { newVal ->
+                                        dropoffAddress = newVal
+                                        if (newVal.length > 5) triggerGeocode()
+                                    },
+                                    label = { Text("Where to?") },
+                                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                                    trailingIcon = {
+                                        if (geocodingDropoff) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                        } else {
+                                            IconButton(onClick = { triggerGeocode() }) { Icon(Icons.Default.Search, contentDescription = "Find") }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                    enabled = !geocodingDropoff,
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { triggerGeocode() })
+                                )
+                                errorMsg?.let {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                }
+                                bookingResult?.let {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(it, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = {
+                                        if (dropoffLat == null) { errorMsg = "Please enter a valid destination address"; return@Button }
+                                        isBooking = true; errorMsg = null; bookingResult = null
+                                        scope.launch {
+                                            try {
+                                                val roadFare = fare ?: 0.0; val roadDistance = distanceKm ?: 0.0; val roadMinutes = durationMin ?: 0
+                                                val response = RetrofitClient.api.createBooking(BookingRequest(
+                                                    pickupAddress = pickupAddress, pickupLat = pickupLat, pickupLng = pickupLng,
+                                                    dropoffAddress = dropoffAddress, dropoffLat = dropoffLat!!, dropoffLng = dropoffLng!!,
+                                                    type = "immediate", fare = roadFare, notes = "${roadDistance}km ${roadMinutes}min"
+                                                ))
+                                                if (response.isSuccessful && response.body() != null) {
+                                                    val body = response.body()!!
+                                                    if (body.booking != null) { bookingResult = "✅ Ride requested! Booking #${body.booking.id}"; onBookingCreated() }
+                                                    else { errorMsg = body.error ?: "Booking failed" }
+                                                } else { errorMsg = "Server error (${response.code()})" }
+                                            } catch (e: Exception) { errorMsg = e.message ?: "Connection error" }
+                                            finally { isBooking = false }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    enabled = !isBooking && dropoffAddress.isNotBlank() && dropoffLat != null,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    if (isBooking) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                                    else { Icon(Icons.Default.DirectionsCar, contentDescription = null); Spacer(modifier = Modifier.width(8.dp)); Text("REQUEST RIDE", fontWeight = FontWeight.Bold) }
+                                }
                             }
                         }
                     }
@@ -414,8 +383,6 @@ fun MapScreen(
         }
     }
 }
-
-// ─── UTILITY FUNCTIONS ───────────────────────────────────────
 
 private fun getCurrentLocation(
     context: Context,
