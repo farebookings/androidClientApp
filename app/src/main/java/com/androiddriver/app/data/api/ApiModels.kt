@@ -36,6 +36,7 @@ data class BookingRequest(
     @SerializedName("dropoff_lng") val dropoffLng: Double,
     val type: String,
     @SerializedName("scheduled_date") val scheduledDate: String? = null,
+    val fare: Double? = null,
     val notes: String? = null
 )
 
