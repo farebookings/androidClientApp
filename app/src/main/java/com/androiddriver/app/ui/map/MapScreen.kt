@@ -200,12 +200,8 @@ fun MapScreen(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                        setTileSource(org.osmdroid.tileprovider.tilesource.XYTileSource(
-                            "Satellite",
-                            0, 19, 256,
-                            ".png",
-                            arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/")
-                        ))
+                        // Default tile source — reliable and fast
+                        setTileSource(TileSourceFactory.MAPNIK)
                         setMultiTouchControls(true)
                         controller.setZoom(16.0)
                         try {
@@ -248,6 +244,7 @@ fun MapScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+
 
             // ─── COLLAPSIBLE BOTTOM CARD ────────────────────────
             Column(
