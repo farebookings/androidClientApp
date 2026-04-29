@@ -309,7 +309,7 @@ fun MapScreen(
                         ) {
                             Column {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded }.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp).clickable { isExpanded = !isExpanded },
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
