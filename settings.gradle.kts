@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "androidDriverApp"
+rootProject.name = "androidClientApp"
 include(":app")
