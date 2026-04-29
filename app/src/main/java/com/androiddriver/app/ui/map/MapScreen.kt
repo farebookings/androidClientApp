@@ -596,7 +596,7 @@ private fun updateMap(
     // Shift map up so marker is visible above bottom card
     android.os.Handler(mapView.context.mainLooper).post {
         try {
-            mapView.scrollBy(0, -(mapView.height / 3))
+            mapView.scrollBy(0, (mapView.height / 3))
         } catch (_: Exception) {}
     }
 }
