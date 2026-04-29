@@ -153,9 +153,35 @@ fun MapScreen(
                         setTileSource(TileSourceFactory.MAPNIK)
                         setMultiTouchControls(true)
                         controller.setZoom(16.0)
-                        controller.setCenter(GeoPoint(40.4168, -3.7038)) // default Madrid
+                        controller.setCenter(GeoPoint(pickupLat, pickupLng))
                         isTilesScaledToDpi = true
                         mapView = this
+
+                        val mapViewRef = this
+                        // ─── Long-press to set pickup point ─────
+                        val eventsOverlay = org.osmdroid.views.overlay.MapEventsOverlay(object : org.osmdroid.events.MapEventsReceiver {
+                            override fun longPressHelper(p: GeoPoint): Boolean {
+                                pickupLat = p.latitude
+                                pickupLng = p.longitude
+                                isLocating = true
+                                reverseGeocode(ctx, p.latitude, p.longitude) { addr ->
+                                    pickupAddress = addr
+                                    isLocating = false
+                                }
+                                if (dropoffLat != null) {
+                                    val dist = haversine(p.latitude, p.longitude, dropoffLat!!, dropoffLng!!)
+                                    distanceKm = dist
+                                    fare = kotlin.math.round(dist * 100.0) / 100.0
+                                }
+                                updateMap(mapViewRef, p.latitude, p.longitude, dropoffLat, dropoffLng, pickupAddress, dropoffAddress)
+                                return true
+                            }
+
+                            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                                return false
+                            }
+                        })
+                        overlays.add(0, eventsOverlay)
                     }
                 },
                 modifier = Modifier.fillMaxSize()

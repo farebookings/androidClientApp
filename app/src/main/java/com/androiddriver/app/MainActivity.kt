@@ -4,13 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.androiddriver.app.data.api.RetrofitClient
+import com.androiddriver.app.data.api.SessionManager
 import com.androiddriver.app.ui.Screen
 import com.androiddriver.app.ui.auth.LoginScreen
 import com.androiddriver.app.ui.booking.ScheduleBookingScreen
@@ -33,10 +34,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Init session manager
+        SessionManager.init(applicationContext)
+
+        // Restore token if saved
+        SessionManager.getToken()?.let { RetrofitClient.setToken(it) }
+
         setContent {
             MaterialTheme(colorScheme = AppColorScheme) {
-                var isLoggedIn by remember { mutableStateOf(false) }
+                var isLoggedIn by remember { mutableStateOf(SessionManager.isLoggedIn()) }
                 val navController = rememberNavController()
+                var initializing by remember { mutableStateOf(isLoggedIn) }
 
                 val startDestination = if (isLoggedIn) Screen.Map.route else Screen.Login.route
 
@@ -47,10 +55,18 @@ class MainActivity : ComponentActivity() {
                     // ─── LOGIN ────────────────────────────────────
                     composable(Screen.Login.route) {
                         LoginScreen(
-                            onLoginSuccess = { response ->
+                            onLoginSuccess = { response, email, password ->
                                 response.token?.let { token ->
-                                    // Store token
-                                    com.androiddriver.app.data.api.RetrofitClient.setToken(token)
+                                    RetrofitClient.setToken(token)
+                                    response.user?.let { user ->
+                                        SessionManager.saveLogin(
+                                            token = token,
+                                            email = email,
+                                            password = password,
+                                            name = user.name,
+                                            phone = user.phone
+                                        )
+                                    }
                                 }
                                 isLoggedIn = true
                                 navController.navigate(Screen.Map.route) {
@@ -66,9 +82,18 @@ class MainActivity : ComponentActivity() {
                     // ─── REGISTER ────────────────────────────────
                     composable(Screen.Register.route) {
                         LoginScreen(
-                            onLoginSuccess = { response ->
+                            onLoginSuccess = { response, email, password ->
                                 response.token?.let { token ->
-                                    com.androiddriver.app.data.api.RetrofitClient.setToken(token)
+                                    RetrofitClient.setToken(token)
+                                    response.user?.let { user ->
+                                        SessionManager.saveLogin(
+                                            token = token,
+                                            email = email,
+                                            password = password,
+                                            name = user.name,
+                                            phone = user.phone
+                                        )
+                                    }
                                 }
                                 isLoggedIn = true
                                 navController.navigate(Screen.Map.route) {
@@ -93,9 +118,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateProfile = {
                                 navController.navigate(Screen.Profile.route)
                             },
-                            onBookingCreated = {
-                                // Navigate to history or show confirmation
-                            }
+                            onBookingCreated = { }
                         )
                     }
 
@@ -118,7 +141,8 @@ class MainActivity : ComponentActivity() {
                         ProfileScreen(
                             onBack = { navController.popBackStack() },
                             onLogout = {
-                                com.androiddriver.app.data.api.RetrofitClient.setToken(null)
+                                RetrofitClient.setToken(null)
+                                SessionManager.clear()
                                 isLoggedIn = false
                                 navController.navigate(Screen.Login.route) {
                                     popUpTo(0) { inclusive = true }

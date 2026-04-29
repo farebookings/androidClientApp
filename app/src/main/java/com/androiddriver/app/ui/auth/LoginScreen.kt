@@ -20,7 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (AuthResponse) -> Unit,
+    onLoginSuccess: (AuthResponse, email: String, password: String) -> Unit,
     onNavigateRegister: () -> Unit
 ) {
     var isRegister by remember { mutableStateOf(false) }
@@ -126,7 +126,7 @@ fun LoginScreen(
                             val body = response.body()!!
                             if (body.token != null) {
                                 RetrofitClient.setToken(body.token)
-                                onLoginSuccess(body)
+                                onLoginSuccess(body, email, password)
                             } else {
                                 error = body.error ?: "Unknown error"
                             }
