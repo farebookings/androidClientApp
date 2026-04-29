@@ -314,7 +314,7 @@ fun ScheduleBookingScreen(
                     Column {
                         // Summary bar (always visible)
                         Surface(
-                            onClick = { isExpanded = !isExpanded },
+                            onClick = { if (isExpanded) isExpanded = false },
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.surface,
                             shape = RoundedCornerShape(16.dp)
@@ -344,7 +344,7 @@ fun ScheduleBookingScreen(
                                     } else {
                                         Text("Set pickup and destination", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    IconButton(onClick = { isExpanded = !isExpanded }) {
+                                    IconButton(onClick = { if (isExpanded) isExpanded = false }) {
                                         Icon(
                                             if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                                             contentDescription = if (isExpanded) "Collapse" else "Expand"
