@@ -177,12 +177,12 @@ fun ScheduleBookingScreen(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
-                    label = { Text("Schedule") }, selected = true, onClick = {}
-                )
-                NavigationBarItem(
                     icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null) },
                     label = { Text("Ride") }, selected = false, onClick = onNavigateSchedule
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
+                    label = { Text("Schedule") }, selected = true, onClick = {}
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.History, contentDescription = null) },
@@ -351,6 +351,39 @@ fun ScheduleBookingScreen(
                                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
                                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { triggerGeocode() })
                                 )
+
+                                // Date
+                                OutlinedTextField(
+                                    value = scheduledDate,
+                                    onValueChange = { scheduledDate = it },
+                                    label = { Text("Date (YYYY-MM-DD)") },
+                                    leadingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Time
+                                OutlinedTextField(
+                                    value = scheduledTime,
+                                    onValueChange = { scheduledTime = it },
+                                    label = { Text("Time (HH:MM)") },
+                                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Notes
+                                OutlinedTextField(
+                                    value = bookingNotes,
+                                    onValueChange = { bookingNotes = it },
+                                    label = { Text("Notes (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    minLines = 2, maxLines = 4
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
                                 errorMsg?.let {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
