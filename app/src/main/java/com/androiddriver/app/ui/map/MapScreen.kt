@@ -106,10 +106,8 @@ fun MapScreen(
             geocodeAddress(context, dropoffAddress) { lat, lng ->
                 if (lat != null && lng != null) {
                     dropoffLat = lat; dropoffLng = lng
-                    val dist = haversine(pickupLat, pickupLng, lat, lng)
-                    distanceKm = dist
-                    fare = kotlin.math.round(dist * 100.0) / 100.0
-                    updateMap(mapView, pickupLat, pickupLng, lat, lng, pickupAddress, dropoffAddress)
+                    distanceKm = null  // Wait for OSRM road route
+                    fare = null
                 }
                 geocodingDropoff = false
             }
