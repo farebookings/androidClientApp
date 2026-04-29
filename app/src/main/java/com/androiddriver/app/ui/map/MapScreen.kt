@@ -50,6 +50,9 @@ fun MapScreen(
     var dropoffLng by remember { mutableStateOf<Double?>(null) }
     var distanceKm by remember { mutableStateOf<Double?>(null) }
     var fare by remember { mutableStateOf<Double?>(null) }
+    var durationMin by remember { mutableStateOf<Long?>(null) }
+    var routePoints by remember { mutableStateOf<List<Pair<Double, Double>>?>(null) }
+    var isRouting by remember { mutableStateOf(false) }
     var isBooking by remember { mutableStateOf(false) }
     var bookingResult by remember { mutableStateOf<String?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -249,25 +252,25 @@ fun MapScreen(
                             )
                         )
 
-                        // Distance + Fare
-                        if (distanceKm != null && fare != null) {
+                        // Road Distance + Fare
+                        if (isRouting) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Calculating road route...", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        if (distanceKm != null && fare != null && !isRouting) {
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider()
                             Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "Distance: ${"%.1f".format(distanceKm)} km",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    "${"%.2f".format(fare)}€",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column {
+                                    durationMin?.let { Text("🚗 ${it} min", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium) }
+                                    Text("🛣️ ${"%.1f".format(distanceKm)} km", style = MaterialTheme.typography.bodyMedium)
+                                }
+                                Text("${"%.2f".format(fare)}€", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                         }
 
@@ -298,8 +301,9 @@ fun MapScreen(
 
                                 scope.launch {
                                     try {
-                                        val dist = haversine(pickupLat, pickupLng, dropoffLat!!, dropoffLng!!)
-                                        val calculatedFare = kotlin.math.round(dist * 100.0) / 100.0
+                                        val roadFare = fare ?: 0.0
+                                        val roadDistance = distanceKm ?: 0.0
+                                        val roadMinutes = durationMin ?: 0
 
                                         val response = RetrofitClient.api.createBooking(
                                             BookingRequest(
@@ -310,8 +314,8 @@ fun MapScreen(
                                                 dropoffLat = dropoffLat!!,
                                                 dropoffLng = dropoffLng!!,
                                                 type = "immediate",
-                                                fare = calculatedFare,
-                                                notes = "Ride from $pickupAddress to $dropoffAddress"
+                                                fare = roadFare,
+                                                notes = "${roadDistance}km ${roadMinutes}min"
                                             )
                                         )
 
@@ -432,7 +436,8 @@ private fun updateMap(
     mapView: MapView?,
     pickupLat: Double, pickupLng: Double,
     dropoffLat: Double?, dropoffLng: Double?,
-    pickupAddr: String, dropoffAddr: String?
+    pickupAddr: String, dropoffAddr: String?,
+    route: List<Pair<Double, Double>>? = null
 ) {
     mapView ?: return
 
@@ -462,19 +467,33 @@ private fun updateMap(
         }
         mapView.overlays.add(dropMarker)
 
-        // Line between points
-        val line = Polyline().apply {
-            addPoint(GeoPoint(pickupLat, pickupLng))
-            addPoint(GeoPoint(dropoffLat, dropoffLng))
-            outlinePaint.strokeWidth = 4f
-            outlinePaint.color = 0xFF1A73E8.toInt()
+        // Road route or straight line
+        if (route != null && route.size >= 2) {
+            val routeLine = Polyline().apply {
+                for (pt in route) addPoint(GeoPoint(pt.first, pt.second))
+                outlinePaint.strokeWidth = 6f
+                outlinePaint.color = 0xFF1A73E8.toInt()
+                outlinePaint.isAntiAlias = true
+            }
+            mapView.overlays.add(routeLine)
+        } else {
+            val straightLine = Polyline().apply {
+                addPoint(GeoPoint(pickupLat, pickupLng))
+                addPoint(GeoPoint(dropoffLat, dropoffLng))
+                outlinePaint.strokeWidth = 3f
+                outlinePaint.color = 0x88667788.toInt()
+                // dotted effect not available on this Paint type
+            }
+            mapView.overlays.add(straightLine)
         }
-        mapView.overlays.add(line)
 
-        // Zoom to fit both points
-        val bounds = org.osmdroid.util.BoundingBox.fromGeoPoints(
+        // Zoom to fit
+        val points = if (route != null && route.size >= 2) {
+            route.map { GeoPoint(it.first, it.second) }
+        } else {
             listOf(GeoPoint(pickupLat, pickupLng), GeoPoint(dropoffLat, dropoffLng))
-        )
+        }
+        val bounds = org.osmdroid.util.BoundingBox.fromGeoPoints(points)
         mapView.zoomToBoundingBox(bounds.increaseByScale(1.3f), true)
     } else {
         mapView.controller.setCenter(GeoPoint(pickupLat, pickupLng))
